@@ -28,40 +28,90 @@ Most agent prototypes break in production at identity boundaries. This repositor
 
 ### 1) System Map: Runtime, Gateway, Identity, Providers
 
-This diagram gives the high-level architecture and component boundaries.
+This diagram shows the full system decomposition and ownership boundaries.
 
 ![AgentCore Identity Architecture Hero](docs/assets/agentcore-readme-hero-nanobanana.png)
 
-Use this to understand:
+How to read this image:
 
-- where agent reasoning runs
-- where protocol routing happens (`tools/list`, `tools/call`)
-- where token exchange is isolated
-- where external API calls are finally executed
+1. Start at the **Runtime zone**:
+   - This is where prompt orchestration, intent handling, and tool selection occur.
+   - Runtime decides *what to call*, but does not own OAuth tokens.
+2. Move to the **Gateway zone (MCP)**:
+   - This is the protocol boundary for `tools/list` and `tools/call`.
+   - Gateway handles routing and contract-level controls before external access.
+3. Move to the **Identity zone**:
+   - This is the only place where delegated OAuth token exchange and vault operations happen.
+   - Keeping this separate is the key security decision in this repo.
+4. End at **External providers**:
+   - Atlassian and Google APIs are called with delegated, scoped credentials.
+   - Provider calls are the output of validated routing + identity checks.
+
+What architectural decision this image communicates:
+
+- The system is intentionally split so runtime logic and credential custody are isolated.
+- Control plane and credential plane are not collapsed into the same layer.
 
 ### 2) Delegated OAuth Flow Sequence
 
-This view explains the request path for a user action that needs provider access.
+This sequence explains the exact lifecycle of a user request that requires provider access.
 
 ![Delegated OAuth Sequence](docs/assets/agentcore-readme-oauth-sequence-nanobanana.png)
 
-Use this to understand:
+How to read this image:
 
-- when consent URL elicitation happens
-- how callback and token exchange resume the flow
-- where delegated tokens are used for provider APIs
+1. Request enters the gateway and available tools are discovered (`tools/list`).
+2. A provider-specific call is attempted (`tools/call`).
+3. If delegated consent is missing, the flow emits an OAuth consent URL.
+4. User completes consent and callback returns to the identity boundary.
+5. Identity performs code exchange and persists delegated token material.
+6. Original operation is retried with scoped delegated credentials.
+7. Gateway returns normalized response to runtime/client.
+
+Operational value of this image:
+
+- It clarifies where interruptions are expected (consent step).
+- It shows why the flow is resumable after callback.
+- It makes explicit where to instrument logs/traces for failure diagnosis.
 
 ### 3) Zero-Trust Boundary Model
 
-This view focuses on security boundaries rather than feature flow.
+This model is security-first: it defines what each zone is allowed to see and do.
 
 ![Zero-Trust Boundary Map](docs/assets/agentcore-readme-zero-trust-nanobanana.png)
 
-Use this to understand:
+How to read this image:
 
-- which layer is allowed to see what
-- why token material is isolated from runtime orchestration
-- where policy and scope enforcement should be audited
+1. Vertical boundaries represent trust cuts between runtime, gateway, identity, and provider planes.
+2. Lock/shield markers represent policy enforcement points.
+3. Labels such as JWT validation, token vault, and scoped OAuth mark where security controls are anchored.
+
+Security assumptions encoded by this image:
+
+- Runtime must never directly persist or own provider secrets.
+- Token handling is constrained to the identity boundary.
+- Gateway is an enforcement and routing boundary, not a token vault.
+- External providers are reachable only through scoped delegated access.
+
+Audit checklist derived from this image:
+
+- Verify JWT and scope enforcement at ingress/gateway.
+- Verify token vault access is restricted to identity paths only.
+- Verify provider calls always use delegated scoped credentials.
+- Verify logs avoid leaking raw token material.
+
+### Code Mapping (Image -> Implementation Surface)
+
+- System map:
+  - runtime orchestration in `src/agents/`
+  - gateway and service wiring in `src/deployment/`
+  - identity and OAuth boundaries in `src/auth/` and `src/vault/`
+- OAuth sequence:
+  - request/flow scripts in `scripts/` (discovery, consent, E2E flows)
+  - provider logic in `src/providers/`
+- Zero-trust model:
+  - scope and auth policy in `src/auth/`
+  - secure credential handling in `src/vault/` and `src/storage/`
 
 ## Repository Structure
 
