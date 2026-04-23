@@ -21,7 +21,13 @@ The implementation is structured into four boundaries:
 3. Identity boundary: delegated OAuth and secure token exchange
 4. Provider boundary: external APIs reachable only through approved scopes
 
-See diagrams and deep-dive docs in [docs/README.md](docs/README.md).
+## Architecture Visuals
+
+![AgentCore Identity Architecture Hero](docs/assets/agentcore-readme-hero-nanobanana.png)
+
+![Delegated OAuth Sequence](docs/assets/agentcore-readme-oauth-sequence-nanobanana.png)
+
+![Zero-Trust Boundary Map](docs/assets/agentcore-readme-zero-trust-nanobanana.png)
 
 ## Repository Structure
 
@@ -32,8 +38,7 @@ See diagrams and deep-dive docs in [docs/README.md](docs/README.md).
 - `deployment/`: deployment assets and phased workflows
 - `deployment/compose/`: compose bundles for local/full-stack scenarios
 - `examples/`: isolated runnable examples
-- `tools/`: auxiliary tooling packages
-- `docs/`: setup, architecture, operations, and article content
+- `docs/`: setup, deployment, and image-generation guidance
 
 ## Quick Start
 
@@ -75,10 +80,10 @@ npx cdk deploy BedrockIdentityFull --require-approval never
 
 ## Nano Banana Image Generation
 
-This repo includes image-generation tooling references for documentation and asset workflows.
+This repo includes an explicit workflow for high-quality architecture imagery.
 
-- Claude path reference package: `tools/image-generator-openai/`
-- Codex equivalent skill: `image-generator` (Gemini Nano Banana Pro backend)
+- Codex skill: `image-generator` (Gemini Nano Banana Pro backend)
+- Workflow doc: [docs/IMAGE_GENERATION_NANOBANANA.md](docs/IMAGE_GENERATION_NANOBANANA.md)
 
 Practical guidance:
 
@@ -96,7 +101,5 @@ Practical guidance:
 
 - [Documentation Index](docs/README.md)
 - [Atlassian OAuth Setup](docs/ATLASSIAN_OAUTH_SETUP.md)
-- [Implementation Guides](docs/IMPLEMENTATION_GUIDES.md)
 - [Production Deployment](docs/PRODUCTION_DEPLOYMENT.md)
-- [Architecture Notes](docs/architecture/)
-- [Refined Article](docs/medium-article-agentcore-refined.html)
+- [Image Generation (Nano Banana)](docs/IMAGE_GENERATION_NANOBANANA.md)

@@ -4,7 +4,6 @@ This repository uses generated visuals for architecture documentation and articl
 
 ## Recommended Skill Mapping
 
-- Claude Code plugin reference package: `tools/image-generator-openai/`
 - Codex skill to use: `image-generator`
 
 For Codex, invoke image generation requests using the installed `image-generator` skill (Gemini Nano Banana Pro backend).
