@@ -1,15 +1,16 @@
 # AgentCore Identity
 
-Production-grade reference for identity-safe AI agent orchestration on Amazon Bedrock AgentCore.
+Production-grade reference architecture for identity-safe AI agent orchestration on Amazon Bedrock AgentCore.
 
-This repository demonstrates how to orchestrate multi-provider agent workflows with delegated OAuth while preserving strict trust boundaries across runtime, gateway, identity, and provider layers.
+This repository shows how to run delegated OAuth across multiple provider APIs without collapsing security boundaries between runtime orchestration and credential custody.
 
 ![AgentCore Identity Architecture](docs/assets/agentcore-readme-hero-nanobanana.png)
 
 ## Problem Statement
 
-Most agent implementations fail during the transition from prototype to production at the identity boundary.
-The common failure mode is coupling orchestration logic with credential custody, which increases token exposure risk, weakens policy enforcement, and makes OAuth callback recovery brittle.
+Most agent systems fail in production at the identity boundary, not in prompt logic.
+The recurring failure pattern is mixing tool orchestration, token exchange, and provider execution in the same layer.
+That design increases credential exposure risk, weakens policy enforcement, and makes OAuth resume flows unreliable.
 
 ## Reference Scope
 
@@ -25,31 +26,33 @@ This implementation is scoped to:
 
 ### 1) System Map: Runtime, Gateway, Identity, Providers
 
-The hero diagram above shows the full system decomposition and ownership boundaries.
+![System Map: Runtime, Gateway, Identity, Providers](docs/assets/agentcore-readme-hero-nanobanana.png)
+
+This diagram defines the system decomposition and ownership boundaries.
 
 How to read this image:
 
 1. Start at the **Runtime zone**:
-   - This is where prompt orchestration, intent handling, and tool selection occur.
-   - Runtime decides *what to call*, but does not own OAuth tokens.
+   - Prompt orchestration, intent handling, and tool selection happen here.
+   - Runtime decides *what to call* but does not own provider credentials.
 2. Move to the **Gateway zone (MCP)**:
-   - This is the protocol boundary for `tools/list` and `tools/call`.
-   - Gateway handles routing and contract-level controls before external access.
+   - Protocol boundary for `tools/list` and `tools/call`.
+   - Routing and contract controls are enforced before external calls.
 3. Move to the **Identity zone**:
-   - This is the only place where delegated OAuth token exchange and vault operations happen.
-   - Keeping this separate is the key security decision in this repo.
+   - Delegated OAuth exchange and token vault operations are isolated here.
+   - This separation is the core security decision of the architecture.
 4. End at **External providers**:
    - Atlassian and Google APIs are called with delegated, scoped credentials.
-   - Provider calls are the output of validated routing + identity checks.
+   - Provider calls happen only after validated routing and identity checks.
 
-What architectural decision this image communicates:
+Architecture decision encoded by this view:
 
-- The system is intentionally split so runtime logic and credential custody are isolated.
-- Control plane and credential plane are not collapsed into the same layer.
+- Runtime orchestration and credential custody are intentionally separated.
+- Control plane and credential plane are not collapsed into one component.
 
 ### 2) Delegated OAuth Flow Sequence
 
-This sequence explains the exact lifecycle of a user request that requires provider access.
+This sequence describes the request lifecycle for a provider action that requires delegated user consent.
 
 ![Delegated OAuth Sequence](docs/assets/agentcore-readme-oauth-sequence-nanobanana.png)
 
@@ -65,9 +68,9 @@ How to read this image:
 
 Operational value of this image:
 
-- It clarifies where interruptions are expected (consent step).
+- It makes the consent interruption point explicit.
 - It shows why the flow is resumable after callback.
-- It makes explicit where to instrument logs/traces for failure diagnosis.
+- It highlights where to instrument traces for incident diagnosis.
 
 ### 3) Zero-Trust Boundary Model
 
@@ -83,9 +86,9 @@ How to read this image:
 
 Security assumptions encoded by this image:
 
-- Runtime must never directly persist or own provider secrets.
-- Token handling is constrained to the identity boundary.
-- Gateway is an enforcement and routing boundary, not a token vault.
+- Runtime must never persist or own provider secrets.
+- Token handling is restricted to the identity boundary.
+- Gateway is an enforcement/routing boundary, not a credential store.
 - External providers are reachable only through scoped delegated access.
 
 Audit checklist derived from this image:
@@ -117,7 +120,7 @@ Audit checklist derived from this image:
 - `deployment/`: deployment assets and phased workflows
 - `deployment/compose/`: compose bundles for local/full-stack scenarios
 - `examples/`: isolated runnable examples
-- `docs/`: setup, deployment, and image-generation guidance
+- `docs/`: setup and deployment documentation
 
 ## Quick Start
 
