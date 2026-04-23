@@ -1,42 +1,39 @@
 # AgentCore Identity
 
-Public reference implementation for secure identity orchestration with Amazon Bedrock AgentCore.
+Production-style reference for identity-safe AI agent orchestration on Amazon Bedrock AgentCore.
 
-This repository shows how to combine:
+This repository focuses on one core problem: enabling an agent to call multiple external systems with delegated user OAuth while preserving strict identity boundaries.
 
-- Inbound user authentication with Cognito JWT
-- AgentCore Gateway tool routing over MCP
-- Outbound delegated OAuth for external providers
-- Runtime orchestration with explicit identity boundaries
+## What You Get
 
-## Core Capabilities
+- Inbound identity validation with Cognito JWT
+- MCP tool discovery/routing through AgentCore Gateway
+- Outbound delegated OAuth providers with token vault isolation
+- Multi-target orchestration patterns (Atlassian + Google Calendar)
+- CDK infrastructure project separated from runtime/service code
 
-- Zero-trust token handling with AgentCore Identity and credential providers
-- Multi-target orchestration pattern (Atlassian + Google Calendar)
-- CDK-based infrastructure provisioning
-- Python runtime and MCP service integration
-- E2E scenario validation assets for mixed target workflows
+## Architecture
 
-## Architecture Snapshot
+The implementation is structured into four boundaries:
 
-The implementation follows a layered model:
+1. Runtime boundary: agent orchestration and tool decisioning
+2. Gateway boundary: MCP protocol transport and tool exposure
+3. Identity boundary: delegated OAuth and secure token exchange
+4. Provider boundary: external APIs reachable only through approved scopes
 
-1. Runtime layer: agent execution and orchestration logic
-2. Gateway layer: tool discovery/routing through MCP
-3. Identity layer: delegated OAuth and token vault boundary
-4. Provider targets: external APIs (for example Jira and Calendar)
+See diagrams and deep-dive docs in [docs/README.md](docs/README.md).
 
-See visual deep dives in [docs/README.md](docs/README.md).
+## Repository Structure
 
-## Repository Layout
-
-- `src/`: auth, runtime, providers, MCP servers, deployment app code
-- `infra/cdk/`: CDK stack project (app entrypoints, stack definitions, Node toolchain files)
-- `scripts/`: discovery, validation, and automation helpers
-- `scripts/deploy/`: deployment orchestration entrypoints
-- `deployment/`: phased deployment scripts and templates
-- `examples/`: standalone runtime/demo examples
-- `docs/`: architecture, setup, deployment, and article material
+- `src/`: runtime/auth/providers/MCP services
+- `infra/cdk/`: CDK app and stack definitions
+- `scripts/`: validation and automation utilities
+- `scripts/deploy/`: deployment entry scripts
+- `deployment/`: deployment assets and phased workflows
+- `deployment/compose/`: compose bundles for local/full-stack scenarios
+- `examples/`: isolated runnable examples
+- `tools/`: auxiliary tooling packages
+- `docs/`: setup, architecture, operations, and article content
 
 ## Quick Start
 
@@ -44,19 +41,17 @@ See visual deep dives in [docs/README.md](docs/README.md).
 
 - Python 3.11+
 - Node.js 18+
-- AWS CLI
+- AWS CLI configured
 - Docker (optional)
 
-### Install dependencies
+### Install
 
 ```bash
-npm ci
 pip install -r requirements.txt
+cd infra/cdk && npm ci
 ```
 
 ### Configure environment
-
-Use your own values only. Do not commit secrets.
 
 ```bash
 export AWS_PROFILE=<AWS_PROFILE>
@@ -64,33 +59,44 @@ export AWS_REGION=<AWS_REGION>
 export AWS_ACCOUNT_ID=<AWS_ACCOUNT_ID>
 ```
 
-### Run locally (example)
+### Run service locally
 
 ```bash
 python entrypoint.py
 ```
 
-## Deploy (example)
+### Deploy infrastructure (example)
 
 ```bash
+cd infra/cdk
 AWS_PROFILE=<AWS_PROFILE> AWS_REGION=<AWS_REGION> \
-(cd infra/cdk && npx cdk deploy BedrockIdentityFull --require-approval never)
+npx cdk deploy BedrockIdentityFull --require-approval never
 ```
 
-## Public Release and Sanitization
+## Nano Banana Image Generation
 
-This repo is sanitized for public sharing:
+This repo includes image-generation tooling references for documentation and asset workflows.
 
-- Account identifiers and profiles are masked with placeholders
-- Email and user-identifying values are masked
-- Internal-only planning/audit material is excluded
-- Docs were curated to keep only implementation-relevant content
+- Claude path reference package: `tools/image-generator-openai/`
+- Codex equivalent skill: `image-generator` (Gemini Nano Banana Pro backend)
 
-## Documentation
+Practical guidance:
+
+- Use the skill when generating architecture hero images, explainer assets, or docs visuals.
+- Keep generated assets under `docs/assets/`.
+- Never commit secrets/API keys in prompts, scripts, or outputs.
+
+## Security and Public-Safe Policy
+
+- Sensitive values are masked using placeholders
+- Internal-only planning/audit artifacts are excluded
+- Environment/account/profile data must remain externalized
+
+## Documentation Entry Points
 
 - [Documentation Index](docs/README.md)
 - [Atlassian OAuth Setup](docs/ATLASSIAN_OAUTH_SETUP.md)
 - [Implementation Guides](docs/IMPLEMENTATION_GUIDES.md)
 - [Production Deployment](docs/PRODUCTION_DEPLOYMENT.md)
 - [Architecture Notes](docs/architecture/)
-- [Article (refined)](docs/medium-article-agentcore-refined.html)
+- [Refined Article](docs/medium-article-agentcore-refined.html)

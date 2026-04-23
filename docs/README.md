@@ -10,6 +10,7 @@ This folder contains the public, implementation-relevant documentation set.
 4. `docs/IMPLEMENTATION_GUIDES.md`: extension patterns for agents, MCP servers, and tools
 5. `docs/PRODUCTION_DEPLOYMENT.md`: deployment runbook and operations checklist
 6. `infra/cdk/`: infrastructure stack project and CDK entrypoints
+7. `docs/IMAGE_GENERATION_NANOBANANA.md`: image generation workflow and Codex/Claude mapping
 
 ## Visual References
 
