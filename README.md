@@ -4,15 +4,22 @@ Production-grade reference for identity-safe AI agent orchestration on Amazon Be
 
 This project addresses one hard problem: how to let an agent call multiple external systems with delegated user OAuth without leaking trust boundaries.
 
+## Hero Image
+
+High-level architecture overview (runtime, gateway, identity, providers) in one view:
+
+![AgentCore Identity Architecture Hero](docs/assets/agentcore-readme-hero-nanobanana.png)
+
 ## Readme Structure
 
 This README is intentionally organized in this order:
 
-1. Problem and scope
-2. Architecture visuals with context
-3. Repository structure
-4. Quick start and deploy
-5. Image generation workflow
+1. Hero image
+2. Problem and scope
+3. Architecture visuals with context
+4. Repository structure
+5. Quick start and deploy
+6. Image generation workflow
 
 ## Problem and Scope
 
@@ -60,9 +67,7 @@ This repository is a reference implementation for identity-safe agent orchestrat
 
 ### 1) System Map: Runtime, Gateway, Identity, Providers
 
-This diagram shows the full system decomposition and ownership boundaries.
-
-![AgentCore Identity Architecture Hero](docs/assets/agentcore-readme-hero-nanobanana.png)
+This section expands the hero image above and explains ownership boundaries in detail.
 
 How to read this image:
 
