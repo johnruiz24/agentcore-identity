@@ -20,6 +20,7 @@ ECR_URI="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}"
 IMAGE_TAG="${IMAGE_TAG:-autonomous-$(date +%Y%m%d%H%M%S)}"
 GATEWAY_ID="${GATEWAY_ID:-}"
 NPM_CACHE_DIR="${NPM_CACHE_DIR:-/tmp/.npm-codex}"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 echo "==> Discovering OAuth secret/provider contexts"
 ATLASSIAN_SECRET_NAME="$(
@@ -84,20 +85,23 @@ docker push "${ECR_URI}:${IMAGE_TAG}"
 
 echo "==> CDK deploy"
 mkdir -p "$NPM_CACHE_DIR"
-NPM_CONFIG_CACHE="$NPM_CACHE_DIR" \
-AWS_SDK_LOAD_CONFIG=1 \
-AWS_PROFILE="$AWS_PROFILE" AWS_REGION="$AWS_REGION" \
-  npx cdk deploy "$STACK_ID" --require-approval never --profile "$AWS_PROFILE" \
-    -c "environment=${ENVIRONMENT}" \
-    -c "imageTag=${IMAGE_TAG}" \
-    -c googleCalendarTargetEnabled=true \
-    -c "googleCalendarOauthProviderArn=${GOOGLE_PROVIDER_ARN}" \
-    -c "googleCalendarOauthSecretArn=${GOOGLE_SECRET_ARN}" \
-    -c "googleCalendarOauthScopes=https://www.googleapis.com/auth/calendar.events" \
-    -c atlassianTargetEnabled=true \
-    -c "atlassianOauthProviderArn=${ATLASSIAN_PROVIDER_ARN}" \
-    -c "atlassianOauthSecretArn=${ATLASSIAN_SECRET_ARN}" \
-    -c "atlassianOauthScopes=read:jira-work,read:jira-user"
+(
+  cd "$REPO_ROOT/infra/cdk"
+  NPM_CONFIG_CACHE="$NPM_CACHE_DIR" \
+  AWS_SDK_LOAD_CONFIG=1 \
+  AWS_PROFILE="$AWS_PROFILE" AWS_REGION="$AWS_REGION" \
+    npx cdk deploy "$STACK_ID" --require-approval never --profile "$AWS_PROFILE" \
+      -c "environment=${ENVIRONMENT}" \
+      -c "imageTag=${IMAGE_TAG}" \
+      -c googleCalendarTargetEnabled=true \
+      -c "googleCalendarOauthProviderArn=${GOOGLE_PROVIDER_ARN}" \
+      -c "googleCalendarOauthSecretArn=${GOOGLE_SECRET_ARN}" \
+      -c "googleCalendarOauthScopes=https://www.googleapis.com/auth/calendar.events" \
+      -c atlassianTargetEnabled=true \
+      -c "atlassianOauthProviderArn=${ATLASSIAN_PROVIDER_ARN}" \
+      -c "atlassianOauthSecretArn=${ATLASSIAN_SECRET_ARN}" \
+      -c "atlassianOauthScopes=read:jira-work,read:jira-user"
+)
 
 echo "==> Smoke test: tools discovery"
 if [[ -z "${GATEWAY_ID}" ]]; then

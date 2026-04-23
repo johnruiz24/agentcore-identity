@@ -11,6 +11,7 @@ IMAGE_TAG="${IMAGE_TAG:-arm64-latest}"
 STACK_ID="${STACK_ID:-BedrockIdentityFull}"
 NPM_CACHE_DIR="${NPM_CACHE_DIR:-/tmp/.npm-codex}"
 ATLASSIAN_SCOPES="${ATLASSIAN_SCOPES:-read:jira-work,read:jira-user}"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 echo "==> Discovering AWS account"
 ACCOUNT_ID="$(
@@ -85,17 +86,20 @@ fi
 
 echo "==> Running CDK deploy"
 mkdir -p "$NPM_CACHE_DIR"
-NPM_CONFIG_CACHE="$NPM_CACHE_DIR" \
-AWS_SDK_LOAD_CONFIG=1 \
-AWS_PROFILE="$AWS_PROFILE" AWS_REGION="$AWS_REGION" \
-  npx cdk deploy "$STACK_ID" --require-approval never --profile "$AWS_PROFILE" \
-    -c "environment=${ENVIRONMENT}" \
-    -c "imageTag=${IMAGE_TAG}" \
-    "${GOOGLE_FLAGS[@]}" \
-    -c atlassianTargetEnabled=true \
-    -c "atlassianOauthProviderArn=${ATLASSIAN_PROVIDER_ARN}" \
-    -c "atlassianOauthSecretArn=${ATLASSIAN_SECRET_ARN}" \
-    -c "atlassianOauthScopes=${ATLASSIAN_SCOPES}"
+(
+  cd "$REPO_ROOT/infra/cdk"
+  NPM_CONFIG_CACHE="$NPM_CACHE_DIR" \
+  AWS_SDK_LOAD_CONFIG=1 \
+  AWS_PROFILE="$AWS_PROFILE" AWS_REGION="$AWS_REGION" \
+    npx cdk deploy "$STACK_ID" --require-approval never --profile "$AWS_PROFILE" \
+      -c "environment=${ENVIRONMENT}" \
+      -c "imageTag=${IMAGE_TAG}" \
+      "${GOOGLE_FLAGS[@]}" \
+      -c atlassianTargetEnabled=true \
+      -c "atlassianOauthProviderArn=${ATLASSIAN_PROVIDER_ARN}" \
+      -c "atlassianOauthSecretArn=${ATLASSIAN_SECRET_ARN}" \
+      -c "atlassianOauthScopes=${ATLASSIAN_SCOPES}"
+)
 
 echo "==> Done"
 echo "Atlassian target enabled for stack environment=${ENVIRONMENT}."

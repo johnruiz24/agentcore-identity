@@ -6,7 +6,7 @@
 # This script automates the AWS deployment of Bedrock AgentCore Identity
 # Run this AFTER you have Google OAuth credentials ready
 #
-# Usage: bash deploy.sh <CLIENT_ID> <CLIENT_SECRET>
+# Usage: bash scripts/deploy/deploy.sh <CLIENT_ID> <CLIENT_SECRET>
 ################################################################################
 
 set -e
@@ -19,6 +19,7 @@ RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Configuration
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 AWS_PROFILE="<AWS_PROFILE>"
 AWS_REGION="eu-central-1"
 AWS_ACCOUNT_ID="<AWS_ACCOUNT_ID>"
@@ -78,8 +79,8 @@ check_prerequisites() {
     print_step "AWS credentials configured"
 
     # Check requirements.txt exists
-    if [ ! -f "requirements.txt" ]; then
-        print_error "requirements.txt not found. Run this script from project root"
+    if [ ! -f "$REPO_ROOT/requirements.txt" ]; then
+        print_error "requirements.txt not found at repository root: $REPO_ROOT"
         exit 1
     fi
     print_step "requirements.txt found"
@@ -88,10 +89,10 @@ check_prerequisites() {
     if [ -z "$1" ] || [ -z "$2" ]; then
         print_error "Google OAuth credentials not provided"
         echo ""
-        echo "Usage: bash deploy.sh <CLIENT_ID> <CLIENT_SECRET>"
+        echo "Usage: bash scripts/deploy/deploy.sh <CLIENT_ID> <CLIENT_SECRET>"
         echo ""
         echo "Example:"
-        echo "  bash deploy.sh '123456789-abc123.apps.googleusercontent.com' 'GOCSPX-xyz123'"
+        echo "  bash scripts/deploy/deploy.sh '123456789-abc123.apps.googleusercontent.com' 'GOCSPX-xyz123'"
         echo ""
         exit 1
     fi
@@ -100,7 +101,7 @@ check_prerequisites() {
 
 install_dependencies() {
     print_header "INSTALLING DEPENDENCIES"
-    pip install -q -r requirements.txt
+    pip install -q -r "$REPO_ROOT/requirements.txt"
     print_step "Dependencies installed"
 }
 
@@ -116,9 +117,12 @@ bootstrap_cdk() {
     print_header "BOOTSTRAPPING CDK"
     print_warning "This only needs to run once"
 
-    cdk bootstrap "aws://$AWS_ACCOUNT_ID/$AWS_REGION" \
-        --profile "$AWS_PROFILE" \
-        --quiet 2>/dev/null || true
+    (
+        cd "$REPO_ROOT/infra/cdk"
+        cdk bootstrap "aws://$AWS_ACCOUNT_ID/$AWS_REGION" \
+            --profile "$AWS_PROFILE" \
+            --quiet 2>/dev/null || true
+    )
 
     print_step "CDK bootstrap complete"
 }
@@ -137,11 +141,14 @@ deploy_stack() {
     fi
 
     print_step "Starting deployment..."
-    cdk deploy \
-        --all \
-        --require-approval never \
-        --profile "$AWS_PROFILE" \
-        --region "$AWS_REGION"
+    (
+        cd "$REPO_ROOT/infra/cdk"
+        cdk deploy \
+            --all \
+            --require-approval never \
+            --profile "$AWS_PROFILE" \
+            --region "$AWS_REGION"
+    )
 
     print_step "Stack deployed successfully"
 }

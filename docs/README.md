@@ -9,6 +9,7 @@ This folder contains the public, implementation-relevant documentation set.
 3. `docs/ATLASSIAN_OAUTH_SETUP.md`: outbound OAuth setup for Jira integration
 4. `docs/IMPLEMENTATION_GUIDES.md`: extension patterns for agents, MCP servers, and tools
 5. `docs/PRODUCTION_DEPLOYMENT.md`: deployment runbook and operations checklist
+6. `infra/cdk/`: infrastructure stack project and CDK entrypoints
 
 ## Visual References
 

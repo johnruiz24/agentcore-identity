@@ -36,13 +36,13 @@ Add more only if needed (for example write scopes for edits).
 Use values returned by AgentCore when the OAuth provider is created (`providerArn`, `secretArn`):
 
 ```bash
-npx cdk deploy BedrockIdentityFull --require-approval never \
+(cd infra/cdk && npx cdk deploy BedrockIdentityFull --require-approval never \
   -c environment=<ENVIRONMENT> \
   -c imageTag=arm64-latest \
   -c atlassianTargetEnabled=true \
   -c atlassianOauthProviderArn=<provider-arn> \
   -c atlassianOauthSecretArn=<secret-arn> \
-  -c atlassianOauthScopes=read:jira-work,read:jira-user
+  -c atlassianOauthScopes=read:jira-work,read:jira-user)
 ```
 
 ## 5) Permission model (what the agent can access)

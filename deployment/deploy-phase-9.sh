@@ -46,7 +46,7 @@ if command -v cdk &> /dev/null; then
         fi
     else
         echo "📦 Deploying CDK stack (this may take 2-5 minutes)..."
-        cd "$PROJECT_DIR"
+        cd "$PROJECT_DIR/infra/cdk"
         cdk deploy BedrockAgentStack --require-approval never --region "$REGION" || {
             echo "❌ CDK deployment failed"
             exit 1

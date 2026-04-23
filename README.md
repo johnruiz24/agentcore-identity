@@ -31,9 +31,11 @@ See visual deep dives in [docs/README.md](docs/README.md).
 ## Repository Layout
 
 - `src/`: auth, runtime, providers, MCP servers, deployment app code
-- `lib/`: CDK stack definitions
-- `scripts/`: deployment, discovery, and validation helpers
+- `infra/cdk/`: CDK stack project (app entrypoints, stack definitions, Node toolchain files)
+- `scripts/`: discovery, validation, and automation helpers
+- `scripts/deploy/`: deployment orchestration entrypoints
 - `deployment/`: phased deployment scripts and templates
+- `examples/`: standalone runtime/demo examples
 - `docs/`: architecture, setup, deployment, and article material
 
 ## Quick Start
@@ -72,7 +74,7 @@ python entrypoint.py
 
 ```bash
 AWS_PROFILE=<AWS_PROFILE> AWS_REGION=<AWS_REGION> \
-npx cdk deploy BedrockIdentityFull --require-approval never
+(cd infra/cdk && npx cdk deploy BedrockIdentityFull --require-approval never)
 ```
 
 ## Public Release and Sanitization
