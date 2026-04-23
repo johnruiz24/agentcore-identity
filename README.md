@@ -16,45 +16,13 @@ This README is intentionally organized in this order:
 
 ## Problem and Scope
 
-### Problem statement
-
-Teams are moving AI agents from demos to production, but identity architecture is usually the first breaking point.
-In most implementations, runtime orchestration, token exchange, and provider access are mixed in the same execution path.
-That coupling creates three recurring failures:
-
-1. Token custody drift:
-   - delegated OAuth artifacts are handled outside a hardened identity boundary
-   - credentials leak into runtime logs, process memory, or ad hoc storage
-2. Boundary ambiguity:
-   - runtime components become responsible for both orchestration and trust decisions
-   - JWT validation, scope enforcement, and provider access controls are not isolated
-3. Operational fragility:
-   - consent interruption paths are under-specified
-   - callback resume behavior is inconsistent across providers
-
-### What this repository is designed to solve
-
-This repository is a reference implementation for identity-safe agent orchestration on Bedrock AgentCore, with explicit separation between:
-
-- runtime orchestration (intent + tool selection)
-- gateway enforcement and MCP routing
-- identity boundary (delegated OAuth exchange + token vault custody)
-- external provider execution with scoped delegated credentials
-
-### Scope of the implementation
+Most agent prototypes break in production at identity boundaries. This repository is built around:
 
 - Inbound identity validation with Cognito JWT
 - MCP tool discovery and routing through AgentCore Gateway
 - Outbound delegated OAuth through AgentCore Identity token vault
 - Multi-target orchestration (Atlassian + Google Calendar)
 - CDK infrastructure isolated from runtime code
-
-### Success criteria
-
-- Runtime can invoke provider actions without directly owning provider secrets.
-- OAuth consent and callback are resumable and auditable.
-- JWT/scope enforcement and token custody remain in dedicated trust boundaries.
-- Infrastructure and runtime concerns are deployable independently.
 
 ## Architecture Visuals
 
