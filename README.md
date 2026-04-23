@@ -2,21 +2,18 @@
 
 Production-grade reference for identity-safe AI agent orchestration on Amazon Bedrock AgentCore.
 
-This project addresses one hard problem: how to let an agent call multiple external systems with delegated user OAuth without leaking trust boundaries.
+This repository demonstrates how to orchestrate multi-provider agent workflows with delegated OAuth while preserving strict trust boundaries across runtime, gateway, identity, and provider layers.
 
-## Readme Structure
+![AgentCore Identity Architecture](docs/assets/agentcore-readme-hero-nanobanana.png)
 
-This README is intentionally organized in this order:
+## Problem Statement
 
-1. Problem and scope
-2. Architecture visuals with context
-3. Repository structure
-4. Quick start and deploy
-5. Image generation workflow
+Most agent implementations fail during the transition from prototype to production at the identity boundary.
+The common failure mode is coupling orchestration logic with credential custody, which increases token exposure risk, weakens policy enforcement, and makes OAuth callback recovery brittle.
 
-## Problem and Scope
+## Reference Scope
 
-Most agent prototypes break in production at identity boundaries. This repository is built around:
+This implementation is scoped to:
 
 - Inbound identity validation with Cognito JWT
 - MCP tool discovery and routing through AgentCore Gateway
@@ -28,9 +25,7 @@ Most agent prototypes break in production at identity boundaries. This repositor
 
 ### 1) System Map: Runtime, Gateway, Identity, Providers
 
-This diagram shows the full system decomposition and ownership boundaries.
-
-![AgentCore Identity Architecture Hero](docs/assets/agentcore-readme-hero-nanobanana.png)
+The hero diagram above shows the full system decomposition and ownership boundaries.
 
 How to read this image:
 
@@ -162,22 +157,8 @@ AWS_PROFILE=<AWS_PROFILE> AWS_REGION=<AWS_REGION> \
 npx cdk deploy BedrockIdentityFull --require-approval never
 ```
 
-## Nano Banana Image Workflow
-
-For Codex, use:
-
-- Skill: `image-generator` (Gemini Nano Banana Pro backend)
-- Guide: [docs/IMAGE_GENERATION_NANOBANANA.md](docs/IMAGE_GENERATION_NANOBANANA.md)
-
-Rules:
-
-- keep generated visuals in `docs/assets/`
-- never include secrets in prompts or generated artifacts
-- regenerate diagrams whenever trust boundaries or flows change
-
 ## Documentation Index
 
 - [Documentation Index](docs/README.md)
 - [Atlassian OAuth Setup](docs/ATLASSIAN_OAUTH_SETUP.md)
 - [Production Deployment](docs/PRODUCTION_DEPLOYMENT.md)
-- [Image Generation (Nano Banana)](docs/IMAGE_GENERATION_NANOBANANA.md)
