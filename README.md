@@ -4,7 +4,7 @@ Production-grade reference architecture for identity-safe AI agent orchestration
 
 This repository shows how to run delegated OAuth across multiple provider APIs without collapsing security boundaries between runtime orchestration and credential custody.
 
-![AgentCore Identity Architecture](docs/assets/agentcore-readme-hero-nanobanana.png)
+![AgentCore Identity Architecture Cover](docs/assets/agentcore-readme-cover-nanobanana.png)
 
 ## Problem Statement
 
