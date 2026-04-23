@@ -1,0 +1,144 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Simple CloudFormation template for AgentCore Identity Bedrock Agent'
+
+Parameters:
+  AgentName:
+    Type: String
+    Default: agentcore-identity-agent
+    Description: Name of the Bedrock Agent
+
+Resources:
+  # IAM Role for Bedrock Agent
+  BedrockAgentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: BedrockAgentPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'bedrock:InvokeModel'
+                  - 'bedrock:InvokeModelWithResponseStream'
+                Resource: 'arn:aws:bedrock:eu-central-1::foundation-model/*'
+              - Effect: Allow
+                Action:
+                  - 'lambda:InvokeFunction'
+                Resource: !GetAtt BedrockAgentHandler.Arn
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogDeliveryService'
+                  - 'logs:CreateLogStream'
+                  - 'logs:CreateLogGroup'
+                  - 'logs:PutResourcePolicy'
+                  - 'logs:DescribeResourcePolicies'
+                  - 'logs:DescribeLogGroups'
+                  - 'logs:DescribeLogStreams'
+                Resource: '*'
+
+  # IAM Role for Lambda
+  BedrockAgentLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: BedrockLambdaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'dynamodb:GetItem'
+                  - 'dynamodb:Query'
+                  - 'dynamodb:Scan'
+                Resource: 'arn:aws:dynamodb:eu-central-1:<AWS_ACCOUNT_ID>:table/agentcore-identity-*'
+              - Effect: Allow
+                Action:
+                  - 'cognito-idp:GetUser'
+                  - 'cognito-idp:AdminGetUser'
+                Resource: '*'
+
+  # Lambda function for tool invocation
+  BedrockAgentHandler:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: agentcore-identity-bedrock-handler
+      Runtime: python3.11
+      Handler: index.handler
+      Role: !GetAtt BedrockAgentLambdaRole.Arn
+      Timeout: 300
+      MemorySize: 512
+      Environment:
+        Variables:
+          AGENT_NAME: !Ref AgentName
+          REGION: eu-central-1
+          DYNAMODB_TABLE_SESSIONS: agentcore-identity-sessions-sandbox
+          BEDROCK_MODEL_ID: anthropic.claude-sonnet-4-20250514-v1:0
+      Code:
+        ZipFile: |
+          import json
+
+          def handler(event, context):
+              print(f"Bedrock Agent tool invocation: {json.dumps(event)}")
+
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps({
+                      'message': 'AgentCore Identity handler ready',
+                      'tool': event.get('tool', 'unknown')
+                  })
+              }
+
+  # CloudWatch Log Group
+  BedrockAgentLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/bedrock/agents/agentcore-identity
+      RetentionInDays: 7
+
+  # ECR Repository
+  AgentECRRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: agentcore-identity
+
+Outputs:
+  AgentRoleArn:
+    Description: ARN of the Bedrock Agent IAM Role
+    Value: !GetAtt BedrockAgentRole.Arn
+    Export:
+      Name: AgentCoreIdentityAgentRoleArn
+
+  LambdaFunctionArn:
+    Description: ARN of the Lambda handler function
+    Value: !GetAtt BedrockAgentHandler.Arn
+    Export:
+      Name: AgentCoreIdentityLambdaArn
+
+  ECRRepositoryUri:
+    Description: URI of the ECR repository
+    Value: !GetAtt AgentECRRepository.RepositoryUri
+    Export:
+      Name: AgentCoreIdentityECRUri
+
+  LogGroupName:
+    Description: CloudWatch Log Group for agent logs
+    Value: !Ref BedrockAgentLogs
+    Export:
+      Name: AgentCoreIdentityLogGroup

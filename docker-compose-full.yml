@@ -1,0 +1,110 @@
+version: '3.8'
+
+services:
+  # 1. IDENTITY SERVICE - Gerencia credenciais OAuth2
+  identity:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bedrock-agentcore-identity
+    ports:
+      - "8000:8000"
+    environment:
+      - AGENTCORE_SERVICE=identity
+      - AWS_REGION=eu-central-1
+      - AWS_ACCOUNT_ID=<AWS_ACCOUNT_ID>
+      - PORT=8000
+      - DYNAMODB_TABLE_CREDENTIALS=agentcore-identity-credentials
+      - DYNAMODB_TABLE_OAUTH_FLOWS=agentcore-identity-oauth-flows
+      - DYNAMODB_TABLE_AUDIT=agentcore-identity-audit-logs
+      - KMS_KEY_ALIAS=alias/agentcore-identity
+      - LOG_LEVEL=INFO
+    depends_on:
+      - localstack
+    volumes:
+      - ./src:/app/src
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - agentcore
+
+  # 2. RUNTIME SERVICE - Executa Bedrock Agents
+  runtime:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bedrock-agentcore-runtime
+    ports:
+      - "8001:8001"
+    environment:
+      - AGENTCORE_SERVICE=runtime
+      - AWS_REGION=eu-central-1
+      - AWS_ACCOUNT_ID=<AWS_ACCOUNT_ID>
+      - PORT=8001
+      - IDENTITY_SERVICE_URL=http://identity:8000
+      - LOG_LEVEL=INFO
+    depends_on:
+      - identity
+    volumes:
+      - ./src:/app/src
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - agentcore
+
+  # 3. GATEWAY SERVICE - Exponibiliza agents via APIs
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bedrock-agentcore-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - AGENTCORE_SERVICE=gateway
+      - AWS_REGION=eu-central-1
+      - AWS_ACCOUNT_ID=<AWS_ACCOUNT_ID>
+      - PORT=8080
+      - IDENTITY_SERVICE_URL=http://identity:8000
+      - RUNTIME_SERVICE_URL=http://runtime:8001
+      - LOG_LEVEL=INFO
+    depends_on:
+      - identity
+      - runtime
+    volumes:
+      - ./src:/app/src
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - agentcore
+
+  # LocalStack para DynamoDB/KMS local (opcional)
+  localstack:
+    image: localstack/localstack:latest
+    container_name: bedrock-agentcore-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=dynamodb,kms,iam,cloudwatch
+      - DEBUG=1
+      - DATA_DIR=/tmp/localstack/data
+      - LAMBDA_EXECUTOR=docker
+    volumes:
+      - "${TMPDIR:-.}/localstack:/tmp/localstack"
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - agentcore
+
+networks:
+  agentcore:
+    driver: bridge

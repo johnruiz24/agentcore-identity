@@ -1,0 +1,86 @@
+[build-system]
+requires = ["setuptools>=67.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentcore-identity"
+version = "0.1.0"
+description = "OAuth2 Authentication and Identity Management for AWS Bedrock AgentCore"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "John Ruiz", email = "<EMAIL_PLACEHOLDER>"}
+]
+
+keywords = [
+    "bedrock",
+    "agentcore",
+    "oauth2",
+    "authentication",
+    "identity",
+    "cognito",
+    "mcp"
+]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "strands-agents>=1.0.0",
+    "strands-agents-tools>=1.0.0",
+    "bedrock-agentcore>=0.1.0",
+    "bedrock-agentcore-starter-toolkit>=0.1.1",
+    "authlib>=1.3.0",
+    "python-jose[cryptography]>=3.3.0",
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "boto3>=1.28.0",
+    "botocore>=1.31.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "pyyaml>=6.0",
+    "python-json-logger>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "mypy>=1.4.0",
+]
+
+[project.urls]
+Repository = "https://github.com/johnruiz24/agentcore-identity"
+Issues = "https://github.com/johnruiz24/agentcore-identity/issues"
+
+[tool.setuptools]
+packages = ["src"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311", "py312"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.11"
+check_untyped_defs = true
+strict_optional = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

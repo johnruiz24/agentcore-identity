@@ -1,0 +1,239 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Bedrock AgentCore Identity - Minimal Infrastructure (Cognito + DynamoDB)'
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: 'sandbox'
+    Description: Environment name (dev, sandbox, prod)
+
+  AppName:
+    Type: String
+    Default: 'agentcore-identity'
+    Description: Application name
+
+  Domain:
+    Type: String
+    Default: 'agentcore-identity'
+    Description: Cognito domain prefix
+
+Resources:
+  # Cognito User Pool (OAuth2 Identity Provider)
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub '${AppName}-userpool-${EnvironmentName}'
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+        - Name: name
+          AttributeDataType: String
+          Mutable: true
+        - Name: department
+          AttributeDataType: String
+          Mutable: true
+      AutoVerifiedAttributes:
+        - email
+      MfaConfiguration: 'OFF'
+
+  # Cognito Domain for OAuth2
+  CognitoUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Sub '${Domain}-${EnvironmentName}'
+      UserPoolId: !Ref CognitoUserPool
+
+  # Cognito Resource Server for OAuth2 Scopes
+  CognitoResourceServer:
+    Type: AWS::Cognito::UserPoolResourceServer
+    Properties:
+      UserPoolId: !Ref CognitoUserPool
+      Identifier: !Sub '${AppName}-resource-server'
+      Name: !Sub '${AppName} Resource Server'
+      Scopes:
+        - ScopeName: 'bedrock:agents:invoke'
+          ScopeDescription: 'Invoke Bedrock agents'
+        - ScopeName: 'bedrock:agents:create'
+          ScopeDescription: 'Create Bedrock agents'
+        - ScopeName: 'identity:read'
+          ScopeDescription: 'Read user identity'
+        - ScopeName: 'identity:write'
+          ScopeDescription: 'Write user identity'
+        - ScopeName: 'mcp:resources:read'
+          ScopeDescription: 'Read MCP resources'
+        - ScopeName: 'mcp:resources:write'
+          ScopeDescription: 'Write MCP resources'
+
+  # Cognito App Client
+  CognitoAppClient:
+    Type: AWS::Cognito::UserPoolClient
+    DependsOn: CognitoResourceServer
+    Properties:
+      UserPoolId: !Ref CognitoUserPool
+      ClientName: !Sub '${AppName}-client-${EnvironmentName}'
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+      AllowedOAuthFlows:
+        - code
+        - implicit
+      AllowedOAuthScopes:
+        - phone
+        - email
+        - openid
+        - profile
+        - !Sub '${AppName}-resource-server/bedrock:agents:invoke'
+        - !Sub '${AppName}-resource-server/identity:read'
+        - !Sub '${AppName}-resource-server/mcp:resources:read'
+      AllowedOAuthFlowsUserPoolClient: true
+      CallbackURLs:
+        - 'http://localhost:8000/auth/callback'
+        - 'http://127.0.0.1:8000/auth/callback'
+      LogoutURLs:
+        - 'http://localhost:8000/auth/logout'
+        - 'http://127.0.0.1:8000/auth/logout'
+      GenerateSecret: false
+
+  # DynamoDB Table for Sessions
+  SessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AppName}-sessions-${EnvironmentName}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: session_id
+          AttributeType: S
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: N
+      KeySchema:
+        - AttributeName: session_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: user_id-created_at-index
+          KeySchema:
+            - AttributeName: user_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Application
+          Value: !Ref AppName
+
+  # DynamoDB Table for Users
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AppName}-users-${EnvironmentName}'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: user_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user_id
+          KeyType: HASH
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Application
+          Value: !Ref AppName
+
+  # CloudWatch Log Groups
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/agentcore-identity/${EnvironmentName}/app'
+      RetentionInDays: 30
+
+  GatewayLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/agentcore-identity/${EnvironmentName}/gateway'
+      RetentionInDays: 30
+
+  # Systems Manager Parameters
+  CognitoUserPoolIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/agentcore-identity/${EnvironmentName}/cognito/user-pool-id'
+      Type: String
+      Value: !Ref CognitoUserPool
+
+  CognitoClientIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/agentcore-identity/${EnvironmentName}/cognito/client-id'
+      Type: String
+      Value: !Ref CognitoAppClient
+
+  CognitoDomainParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/agentcore-identity/${EnvironmentName}/cognito/domain'
+      Type: String
+      Value: !Sub '${Domain}-${EnvironmentName}'
+
+  SessionsTableParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/agentcore-identity/${EnvironmentName}/dynamodb/sessions-table'
+      Type: String
+      Value: !Ref SessionsTable
+
+  UsersTableParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/agentcore-identity/${EnvironmentName}/dynamodb/users-table'
+      Type: String
+      Value: !Ref UsersTable
+
+Outputs:
+  CognitoUserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref CognitoUserPool
+    Export:
+      Name: !Sub '${AppName}-cognito-user-pool-${EnvironmentName}'
+
+  CognitoAppClientId:
+    Description: Cognito App Client ID
+    Value: !Ref CognitoAppClient
+    Export:
+      Name: !Sub '${AppName}-cognito-client-${EnvironmentName}'
+
+  CognitoDomain:
+    Description: Cognito Domain
+    Value: !Sub '${Domain}-${EnvironmentName}'
+    Export:
+      Name: !Sub '${AppName}-cognito-domain-${EnvironmentName}'
+
+  SessionsTableName:
+    Description: DynamoDB Sessions Table
+    Value: !Ref SessionsTable
+    Export:
+      Name: !Sub '${AppName}-sessions-table-${EnvironmentName}'
+
+  UsersTableName:
+    Description: DynamoDB Users Table
+    Value: !Ref UsersTable
+    Export:
+      Name: !Sub '${AppName}-users-table-${EnvironmentName}'

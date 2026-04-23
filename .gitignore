@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+.pytest_cache/
+.venv/
+.pi/
+*.pyc
+*.pyo
+*.pyd
+
+# Node
+node_modules/
+
+# Local runtime/state artifacts
+.env
+.env.*
+.omx/
+.omc/
+logs/
+coverage/
+.coverage
+cdk.out/
+dist/
+
+# OS/editor noise
+.DS_Store
+*.log
+
+# Project outputs
+demo_output/
+delegation.log

@@ -1,0 +1,38 @@
+default_agent: bedrock_identity_oauth2
+
+agents:
+  bedrock_identity_oauth2:
+    name: bedrock_identity_oauth2
+    language: python
+    entrypoint: src/deployment/agentcore_entrypoint.py
+    deployment_type: container
+    platform: linux/arm64
+    container_runtime: docker
+
+    aws:
+      account: "<AWS_ACCOUNT_ID>"
+      region: eu-central-1
+      execution_role_auto_create: true
+      execution_role: null
+      ecr_repository: <AWS_ACCOUNT_ID>.dkr.ecr.eu-central-1.amazonaws.com/bedrock-agentcore-identity-oauth2
+      ecr_auto_create: true
+
+      network_configuration:
+        network_mode: PUBLIC
+
+      protocol_configuration:
+        server_protocol: HTTP
+
+      observability:
+        enabled: true
+
+    bedrock_agentcore:
+      agent_id: null
+      agent_arn: null
+      agent_session_id: null
+
+    memory:
+      mode: NO_MEMORY
+
+    identity:
+      credential_providers: []

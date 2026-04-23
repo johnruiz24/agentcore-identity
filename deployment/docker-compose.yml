@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  agentcore-identity:
+    container_name: agentcore-identity-dev
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - AWS_REGION=eu-central-1
+      - AWS_ACCOUNT_ID=<AWS_ACCOUNT_ID>
+      - DYNAMODB_ENDPOINT=http://localstack:4566
+      - COGNITO_DOMAIN=agentcore-identity.auth.eu-central-1.amazoncognito.com
+      - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}
+      - COGNITO_CLIENT_SECRET=${COGNITO_CLIENT_SECRET}
+      - KMS_KEY_ALIAS=alias/agentcore-identity
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ../src:/app/src
+      - ../config:/app/config
+    depends_on:
+      - localstack
+      - postgres
+    networks:
+      - agentcore-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  localstack:
+    container_name: localstack-dev
+    image: localstack/localstack:latest
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=dynamodb,kms,lambda,logs,iam,apigatewayv2
+      - DEBUG=1
+    volumes:
+      - localstack-data:/tmp/localstack
+    networks:
+      - agentcore-network
+    healthcheck:
+      test: ["CMD", "awslocal", "kinesis", "list-streams"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    container_name: agentcore-postgres-dev
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=agentcore
+      - POSTGRES_PASSWORD=agentcore
+      - POSTGRES_DB=agentcore_identity
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - agentcore-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentcore"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  localstack-data:
+  postgres-data:
+
+networks:
+  agentcore-network:
+    driver: bridge

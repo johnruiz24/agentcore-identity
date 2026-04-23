@@ -1,0 +1,8 @@
+{
+  "name": "image-generator-openai",
+  "description": "Generate and edit images using OpenAI's gpt-image-2 model (ChatGPT Images 2.0)",
+  "version": "1.0.0",
+  "author": {
+    "name": "Claude"
+  }
+}

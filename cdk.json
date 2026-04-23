@@ -1,0 +1,9 @@
+{
+  "app": "npx ts-node lib/bedrock-agentcore-stack.ts",
+  "context": {
+    "environment": "dev",
+    "imageTag": "arm64-latest",
+    "account": "<AWS_ACCOUNT_ID>",
+    "region": "eu-central-1"
+  }
+}

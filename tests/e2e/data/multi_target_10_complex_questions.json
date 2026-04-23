@@ -1,0 +1,260 @@
+[
+  {
+    "id": "mll_sprint_risk_checkpoint",
+    "question": "Identify high-priority unresolved risks in MLL and create a risk checkpoint event with explicit owner follow-up.",
+    "steps": [
+      {"logical_tool": "atlassian.list_accessible_resources", "arguments": {}},
+      {
+        "logical_tool": "atlassian.search_issues",
+        "arguments": {
+          "cloudId": "{{cloudId}}",
+          "jql": "project = MLL AND priority in (Highest, High) AND statusCategory != Done ORDER BY updated DESC",
+          "maxResults": 20
+        }
+      },
+      {
+        "logical_tool": "google.create_calendar_event",
+        "arguments": {
+          "calendarId": "primary",
+          "summary": "MLL Risk Checkpoint",
+          "description": "High-priority unresolved sprint risks from Jira (MLL).",
+          "start": {"dateTime": "{{slot1_start_iso}}", "timeZone": "Europe/Lisbon"},
+          "end": {"dateTime": "{{slot1_end_iso}}", "timeZone": "Europe/Lisbon"}
+        }
+      }
+    ]
+  },
+  {
+    "id": "mll_blocker_dependency_sync",
+    "question": "Surface MLL blocker/dependency tickets still open and schedule a dependency synchronization call.",
+    "steps": [
+      {"logical_tool": "atlassian.list_accessible_resources", "arguments": {}},
+      {
+        "logical_tool": "atlassian.search_issues",
+        "arguments": {
+          "cloudId": "{{cloudId}}",
+          "jql": "project = MLL AND labels in (blocker, dependency) AND statusCategory != Done ORDER BY priority DESC, updated DESC",
+          "maxResults": 20
+        }
+      },
+      {
+        "logical_tool": "google.create_calendar_event",
+        "arguments": {
+          "calendarId": "primary",
+          "summary": "MLL Dependency Sync",
+          "description": "Blocker and dependency alignment from open MLL Jira tickets.",
+          "start": {"dateTime": "{{slot2_start_iso}}", "timeZone": "Europe/Lisbon"},
+          "end": {"dateTime": "{{slot2_end_iso}}", "timeZone": "Europe/Lisbon"}
+        }
+      }
+    ]
+  },
+  {
+    "id": "mll_incident_bug_hotspots",
+    "question": "Find active incident and critical bug hotspots in MLL and book a triage war-room.",
+    "steps": [
+      {"logical_tool": "atlassian.list_accessible_resources", "arguments": {}},
+      {
+        "logical_tool": "atlassian.search_issues",
+        "arguments": {
+          "cloudId": "{{cloudId}}",
+          "jql": "project = MLL AND issuetype in (Bug, Incident) AND priority in (Highest, High) AND statusCategory != Done ORDER BY created DESC",
+          "maxResults": 20
+        }
+      },
+      {
+        "logical_tool": "google.create_calendar_event",
+        "arguments": {
+          "calendarId": "primary",
+          "summary": "MLL Incident and Bug Hotspot Triage",
+          "description": "Critical incidents/bugs triage from Jira MLL query.",
+          "start": {"dateTime": "{{slot3_start_iso}}", "timeZone": "Europe/Lisbon"},
+          "end": {"dateTime": "{{slot3_end_iso}}", "timeZone": "Europe/Lisbon"}
+        }
+      }
+    ]
+  },
+  {
+    "id": "mll_release_readiness_gate",
+    "question": "Assess MLL release readiness based on open release-tagged work and schedule go/no-go.",
+    "steps": [
+      {"logical_tool": "atlassian.list_accessible_resources", "arguments": {}},
+      {
+        "logical_tool": "atlassian.search_issues",
+        "arguments": {
+          "cloudId": "{{cloudId}}",
+          "jql": "project = MLL AND labels in (release, readiness, go-live) AND statusCategory != Done ORDER BY priority DESC, updated DESC",
+          "maxResults": 20
+        }
+      },
+      {
+        "logical_tool": "google.create_calendar_event",
+        "arguments": {
+          "calendarId": "primary",
+          "summary": "MLL Release Go/No-Go",
+          "description": "Release readiness checkpoint linked to open release Jira work.",
+          "start": {"dateTime": "{{slot4_start_iso}}", "timeZone": "Europe/Lisbon"},
+          "end": {"dateTime": "{{slot4_end_iso}}", "timeZone": "Europe/Lisbon"}
+        }
+      }
+    ]
+  },
+  {
+    "id": "mll_data_quality_debt",
+    "question": "Extract unresolved data quality and data drift debt items from MLL and schedule remediation planning.",
+    "steps": [
+      {"logical_tool": "atlassian.list_accessible_resources", "arguments": {}},
+      {
+        "logical_tool": "atlassian.search_issues",
+        "arguments": {
+          "cloudId": "{{cloudId}}",
+          "jql": "project = MLL AND text ~ \"data quality\" AND statusCategory != Done ORDER BY updated DESC",
+          "maxResults": 20
+        }
+      },
+      {
+        "logical_tool": "google.create_calendar_event",
+        "arguments": {
+          "calendarId": "primary",
+          "summary": "MLL Data Quality Debt Planning",
+          "description": "Remediation session for unresolved data quality/drift debt.",
+          "start": {"dateTime": "{{slot5_start_iso}}", "timeZone": "Europe/Lisbon"},
+          "end": {"dateTime": "{{slot5_end_iso}}", "timeZone": "Europe/Lisbon"}
+        }
+      }
+    ]
+  },
+  {
+    "id": "mll_model_drift_watch",
+    "question": "Query MLL model drift and performance regression tickets still open, then create a drift watch review event.",
+    "steps": [
+      {"logical_tool": "atlassian.list_accessible_resources", "arguments": {}},
+      {
+        "logical_tool": "atlassian.search_issues",
+        "arguments": {
+          "cloudId": "{{cloudId}}",
+          "jql": "project = MLL AND (text ~ \"drift\" OR text ~ \"regression\") AND statusCategory != Done ORDER BY updated DESC",
+          "maxResults": 20
+        }
+      },
+      {
+        "logical_tool": "google.create_calendar_event",
+        "arguments": {
+          "calendarId": "primary",
+          "summary": "MLL Model Drift Watch",
+          "description": "Review of active model drift and performance regression issues.",
+          "start": {"dateTime": "{{slot6_start_iso}}", "timeZone": "Europe/Lisbon"},
+          "end": {"dateTime": "{{slot6_end_iso}}", "timeZone": "Europe/Lisbon"}
+        }
+      }
+    ]
+  },
+  {
+    "id": "mll_experiment_pipeline_blocks",
+    "question": "Find blocked experiment/pipeline tickets for MLL and arrange unblock workshop.",
+    "steps": [
+      {"logical_tool": "atlassian.list_accessible_resources", "arguments": {}},
+      {
+        "logical_tool": "atlassian.search_issues",
+        "arguments": {
+          "cloudId": "{{cloudId}}",
+          "jql": "project = MLL AND (text ~ \"pipeline\" OR text ~ \"experiment\") AND statusCategory != Done ORDER BY updated DESC",
+          "maxResults": 20
+        }
+      },
+      {
+        "logical_tool": "google.create_calendar_event",
+        "arguments": {
+          "calendarId": "primary",
+          "summary": "MLL Experiment Pipeline Unblock",
+          "description": "Unblock workshop for open experiment and pipeline constraints.",
+          "start": {"dateTime": "{{slot7_start_iso}}", "timeZone": "Europe/Lisbon"},
+          "end": {"dateTime": "{{slot7_end_iso}}", "timeZone": "Europe/Lisbon"}
+        }
+      }
+    ]
+  },
+  {
+    "id": "mll_security_compliance_flags",
+    "question": "Surface unresolved MLL security/compliance issues and create a compliance checkpoint.",
+    "steps": [
+      {"logical_tool": "atlassian.list_accessible_resources", "arguments": {}},
+      {
+        "logical_tool": "atlassian.search_issues",
+        "arguments": {
+          "cloudId": "{{cloudId}}",
+          "jql": "project = MLL AND (text ~ \"security\" OR text ~ \"compliance\" OR labels in (security, compliance)) AND statusCategory != Done ORDER BY priority DESC, updated DESC",
+          "maxResults": 20
+        }
+      },
+      {
+        "logical_tool": "google.create_calendar_event",
+        "arguments": {
+          "calendarId": "primary",
+          "summary": "MLL Security and Compliance Checkpoint",
+          "description": "Checkpoint for unresolved security/compliance Jira issues.",
+          "start": {"dateTime": "{{slot8_start_iso}}", "timeZone": "Europe/Lisbon"},
+          "end": {"dateTime": "{{slot8_end_iso}}", "timeZone": "Europe/Lisbon"}
+        }
+      }
+    ]
+  },
+  {
+    "id": "mll_cross_team_dependency_map",
+    "question": "Build a dependency map from unresolved MLL tickets referencing external teams and schedule cross-team sync.",
+    "steps": [
+      {"logical_tool": "atlassian.list_accessible_resources", "arguments": {}},
+      {
+        "logical_tool": "atlassian.search_projects",
+        "arguments": {
+          "cloudId": "{{cloudId}}",
+          "query": "Machine Learning",
+          "maxResults": 20
+        }
+      },
+      {
+        "logical_tool": "atlassian.search_issues",
+        "arguments": {
+          "cloudId": "{{cloudId}}",
+          "jql": "project = MLL AND text ~ \"dependency\" AND statusCategory != Done ORDER BY updated DESC",
+          "maxResults": 20
+        }
+      },
+      {
+        "logical_tool": "google.create_calendar_event",
+        "arguments": {
+          "calendarId": "primary",
+          "summary": "MLL Cross-Team Dependency Sync",
+          "description": "Cross-team planning from unresolved dependency tickets.",
+          "start": {"dateTime": "{{slot9_start_iso}}", "timeZone": "Europe/Lisbon"},
+          "end": {"dateTime": "{{slot9_end_iso}}", "timeZone": "Europe/Lisbon"}
+        }
+      }
+    ]
+  },
+  {
+    "id": "mll_retrospective_action_closure",
+    "question": "Find open retrospective action items in MLL and create closure planning event.",
+    "steps": [
+      {"logical_tool": "atlassian.list_accessible_resources", "arguments": {}},
+      {
+        "logical_tool": "atlassian.search_issues",
+        "arguments": {
+          "cloudId": "{{cloudId}}",
+          "jql": "project = MLL AND text ~ \"retrospective\" AND statusCategory != Done ORDER BY updated DESC",
+          "maxResults": 20
+        }
+      },
+      {
+        "logical_tool": "google.create_calendar_event",
+        "arguments": {
+          "calendarId": "primary",
+          "summary": "MLL Retrospective Action Closure",
+          "description": "Closure planning for open retrospective action items.",
+          "start": {"dateTime": "{{slot10_start_iso}}", "timeZone": "Europe/Lisbon"},
+          "end": {"dateTime": "{{slot10_end_iso}}", "timeZone": "Europe/Lisbon"}
+        }
+      }
+    ]
+  }
+]

@@ -1,0 +1,619 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Bedrock AgentCore Identity - Complete Infrastructure Stack with OAuth2 Gateway, Inbound/Outbound Auth, and MCP Integration'
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: 'sandbox'
+    Description: Environment name (dev, sandbox, prod)
+
+  AppName:
+    Type: String
+    Default: 'agentcore-identity'
+    Description: Application name
+
+  Domain:
+    Type: String
+    Default: 'agentcore-identity'
+    Description: Cognito domain prefix
+
+  CallbackURL:
+    Type: String
+    Default: 'http://localhost:8000/auth/callback'
+    Description: OAuth2 callback URL
+
+  LogoutURL:
+    Type: String
+    Default: 'http://localhost:8000/auth/logout'
+    Description: OAuth2 logout URL
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Application Configuration"
+        Parameters:
+          - EnvironmentName
+          - AppName
+          - Domain
+      - Label:
+          default: "OAuth2 Configuration"
+        Parameters:
+          - CallbackURL
+          - LogoutURL
+
+Resources:
+  # ====================================================================
+  # 1. COGNITO - OAuth2 Identity Provider (Inbound Authentication)
+  # ====================================================================
+
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub '${AppName}-userpool-${EnvironmentName}'
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+        - Name: name
+          AttributeDataType: String
+          Mutable: true
+        - Name: phone_number
+          AttributeDataType: String
+          Mutable: true
+        - Name: department
+          AttributeDataType: String
+          Mutable: true
+      AutoVerifiedAttributes:
+        - email
+      MfaConfiguration: OFF
+      UserAttributeUpdateSettings:
+        AttributesRequireVerificationBeforeUpdate:
+          - email
+
+  CognitoUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Sub '${Domain}-${EnvironmentName}'
+      UserPoolId: !Ref CognitoUserPool
+
+  CognitoResourceServer:
+    Type: AWS::Cognito::UserPoolResourceServer
+    Properties:
+      UserPoolId: !Ref CognitoUserPool
+      Identifier: !Sub '${AppName}-resource-server'
+      Name: !Sub '${AppName} Resource Server'
+      Scopes:
+        # Bedrock Agent Scopes
+        - ScopeName: 'agents:invoke'
+          ScopeDescription: 'Permission to invoke Bedrock agents'
+        - ScopeName: 'agents:read'
+          ScopeDescription: 'Permission to read agent information'
+        - ScopeName: 'agents:create'
+          ScopeDescription: 'Permission to create new agents'
+        - ScopeName: 'agents:update'
+          ScopeDescription: 'Permission to update agent configuration'
+        - ScopeName: 'agents:delete'
+          ScopeDescription: 'Permission to delete agents'
+        # MCP Scopes
+        - ScopeName: 'mcp:resources:read'
+          ScopeDescription: 'Permission to read MCP resources'
+        - ScopeName: 'mcp:resources:create'
+          ScopeDescription: 'Permission to create MCP resources'
+        - ScopeName: 'mcp:tools:execute'
+          ScopeDescription: 'Permission to execute MCP tools'
+        # Identity Scopes
+        - ScopeName: 'identity:read'
+          ScopeDescription: 'Permission to read identity information'
+        - ScopeName: 'identity:write'
+          ScopeDescription: 'Permission to write identity information'
+
+  CognitoAppClient:
+    Type: AWS::Cognito::UserPoolClient
+    DependsOn: CognitoResourceServer
+    Properties:
+      ClientName: !Sub '${AppName}-appclient'
+      UserPoolId: !Ref CognitoUserPool
+      GenerateSecret: true
+      RefreshTokenValidity: 7
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
+      AllowedOAuthFlows:
+        - code
+        - implicit
+      AllowedOAuthScopes:
+        - openid
+        - profile
+        - email
+        - aws.cognito.signin.user.admin
+        - !Sub '${AppName}-resource-server/agents:invoke'
+        - !Sub '${AppName}-resource-server/agents:read'
+        - !Sub '${AppName}-resource-server/agents:create'
+        - !Sub '${AppName}-resource-server/mcp:resources:read'
+        - !Sub '${AppName}-resource-server/mcp:tools:execute'
+        - !Sub '${AppName}-resource-server/identity:read'
+      AllowedOAuthFlowsUserPoolClient: true
+      CallbackURLs:
+        - !Ref CallbackURL
+      LogoutURLs:
+        - !Ref LogoutURL
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      PreventUserExistenceErrors: ENABLED
+
+  # ====================================================================
+  # 2. DYNAMODB - Session & User Storage
+  # ====================================================================
+
+  SessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AppName}-sessions-${EnvironmentName}'
+      AttributeDefinitions:
+        - AttributeName: session_id
+          AttributeType: S
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: N
+      KeySchema:
+        - AttributeName: session_id
+          KeyType: HASH
+        - AttributeName: user_id
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: user_id-created_at-index
+          KeySchema:
+            - AttributeName: user_id
+              KeyType: HASH
+            - AttributeName: created_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${AppName}-users-${EnvironmentName}'
+      AttributeDefinitions:
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user_id
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: email-index
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+  # ====================================================================
+  # 3. IAM - Roles & Permissions
+  # ====================================================================
+
+  # Role for Bedrock Agents to invoke Lambda actions
+  BedrockAgentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AppName}-bedrock-agent-role-${EnvironmentName}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonBedrockFullAccess
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+  # Inline policy for DynamoDB and Cognito access
+  BedrockAgentPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub '${AppName}-bedrock-agent-policy'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DynamoDBAccess
+            Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:Query
+              - dynamodb:Scan
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Resource:
+              - !GetAtt SessionsTable.Arn
+              - !GetAtt UsersTable.Arn
+              - !Sub '${SessionsTable.Arn}/index/*'
+              - !Sub '${UsersTable.Arn}/index/*'
+          - Sid: CognitoAccess
+            Effect: Allow
+            Action:
+              - cognito-idp:AdminGetUser
+              - cognito-idp:AdminUpdateUserAttributes
+              - cognito-idp:GetUser
+            Resource: !GetAtt CognitoUserPool.Arn
+          - Sid: CloudWatchLogs
+            Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock/*'
+      Roles:
+        - !Ref BedrockAgentRole
+
+  # Role for Lambda functions (action executors)
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AppName}-lambda-execution-role-${EnvironmentName}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+  # Inline policy for Lambda to access DynamoDB
+  LambdaExecutionPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub '${AppName}-lambda-execution-policy'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DynamoDBAccess
+            Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:Query
+              - dynamodb:UpdateItem
+            Resource:
+              - !GetAtt SessionsTable.Arn
+              - !GetAtt UsersTable.Arn
+              - !Sub '${SessionsTable.Arn}/index/*'
+              - !Sub '${UsersTable.Arn}/index/*'
+          - Sid: CloudWatchLogs
+            Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*'
+      Roles:
+        - !Ref LambdaExecutionRole
+
+  # Role for ECS Task (FastAPI Gateway)
+  ECSTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AppName}-ecs-task-execution-role-${EnvironmentName}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+  ECSTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AppName}-ecs-task-role-${EnvironmentName}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+  ECSTaskPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub '${AppName}-ecs-task-policy'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DynamoDBAccess
+            Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:Query
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Resource:
+              - !GetAtt SessionsTable.Arn
+              - !GetAtt UsersTable.Arn
+              - !Sub '${SessionsTable.Arn}/index/*'
+              - !Sub '${UsersTable.Arn}/index/*'
+          - Sid: CognitoAccess
+            Effect: Allow
+            Action:
+              - cognito-idp:AdminGetUser
+              - cognito-idp:AdminCreateUser
+              - cognito-idp:AdminDeleteUser
+              - cognito-idp:AdminInitiateAuth
+              - cognito-idp:GetUser
+            Resource: !GetAtt CognitoUserPool.Arn
+          - Sid: SSMParameterAccess
+            Effect: Allow
+            Action:
+              - ssm:GetParameter
+              - ssm:GetParameters
+            Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/agentcore-identity/*'
+          - Sid: CloudWatchLogs
+            Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/ecs/*'
+          - Sid: BedrockAccess
+            Effect: Allow
+            Action:
+              - bedrock:InvokeModel
+              - bedrock:InvokeModelWithResponseStream
+            Resource: !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/*'
+      Roles:
+        - !Ref ECSTaskRole
+
+  # ====================================================================
+  # 4. SECURITY GROUPS & VPC (Optional but Recommended)
+  # ====================================================================
+
+  GatewaySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for AgentCore Identity Gateway
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8000
+          ToPort: 8000
+          CidrIp: 0.0.0.0/0
+          Description: FastAPI Gateway HTTP
+        - IpProtocol: tcp
+          FromPort: 8001
+          ToPort: 8001
+          CidrIp: 0.0.0.0/0
+          Description: MCP Servers HTTP
+      Tags:
+        - Key: Environment
+          Value: !Ref EnvironmentName
+
+  # ====================================================================
+  # 5. SYSTEMS MANAGER - Parameter Store (Configuration)
+  # ====================================================================
+
+  CognitoUserPoolIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/agentcore-identity/${EnvironmentName}/cognito/user-pool-id'
+      Type: String
+      Value: !Ref CognitoUserPool
+      Description: Cognito User Pool ID
+      Tags:
+        Environment: !Ref EnvironmentName
+
+  CognitoUserPoolArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/agentcore-identity/${EnvironmentName}/cognito/user-pool-arn'
+      Type: String
+      Value: !GetAtt CognitoUserPool.Arn
+      Description: Cognito User Pool ARN
+      Tags:
+        Environment: !Ref EnvironmentName
+
+  CognitoAppClientIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/agentcore-identity/${EnvironmentName}/cognito/app-client-id'
+      Type: String
+      Value: !Ref CognitoAppClient
+      Description: Cognito App Client ID
+      Tags:
+        Environment: !Ref EnvironmentName
+
+  CognitoDomainParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/agentcore-identity/${EnvironmentName}/cognito/domain'
+      Type: String
+      Value: !Sub 'https://${Domain}-${EnvironmentName}.auth.${AWS::Region}.amazoncognito.com'
+      Description: Cognito Domain URL
+      Tags:
+        Environment: !Ref EnvironmentName
+
+  SessionsTableParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/agentcore-identity/${EnvironmentName}/dynamodb/sessions-table'
+      Type: String
+      Value: !Ref SessionsTable
+      Description: DynamoDB Sessions Table Name
+      Tags:
+        Environment: !Ref EnvironmentName
+
+  UsersTableParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/agentcore-identity/${EnvironmentName}/dynamodb/users-table'
+      Type: String
+      Value: !Ref UsersTable
+      Description: DynamoDB Users Table Name
+      Tags:
+        Environment: !Ref EnvironmentName
+
+  BedrockAgentRoleParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/agentcore-identity/${EnvironmentName}/iam/bedrock-agent-role-arn'
+      Type: String
+      Value: !GetAtt BedrockAgentRole.Arn
+      Description: Bedrock Agent IAM Role ARN
+      Tags:
+        Environment: !Ref EnvironmentName
+
+  # ====================================================================
+  # 6. CLOUDWATCH - Logging
+  # ====================================================================
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/agentcore-identity/${EnvironmentName}'
+      RetentionInDays: 30
+
+  GatewayLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/agentcore-identity/${EnvironmentName}/gateway'
+      RetentionInDays: 30
+
+  # ====================================================================
+  # 7. OUTPUTS
+  # ====================================================================
+
+Outputs:
+  CognitoUserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref CognitoUserPool
+    Export:
+      Name: !Sub '${AppName}-UserPoolId-${EnvironmentName}'
+
+  CognitoUserPoolArn:
+    Description: Cognito User Pool ARN
+    Value: !GetAtt CognitoUserPool.Arn
+    Export:
+      Name: !Sub '${AppName}-UserPoolArn-${EnvironmentName}'
+
+  CognitoAppClientId:
+    Description: Cognito App Client ID
+    Value: !Ref CognitoAppClient
+    Export:
+      Name: !Sub '${AppName}-AppClientId-${EnvironmentName}'
+
+  CognitoDomainUrl:
+    Description: Cognito Domain URL
+    Value: !Sub 'https://${Domain}-${EnvironmentName}.auth.${AWS::Region}.amazoncognito.com'
+    Export:
+      Name: !Sub '${AppName}-CognitoDomainUrl-${EnvironmentName}'
+
+  CognitoResourceServerId:
+    Description: Cognito Resource Server ID
+    Value: !Ref CognitoResourceServer
+    Export:
+      Name: !Sub '${AppName}-ResourceServerId-${EnvironmentName}'
+
+  SessionsTableName:
+    Description: DynamoDB Sessions Table Name
+    Value: !Ref SessionsTable
+    Export:
+      Name: !Sub '${AppName}-SessionsTableName-${EnvironmentName}'
+
+  SessionsTableArn:
+    Description: DynamoDB Sessions Table ARN
+    Value: !GetAtt SessionsTable.Arn
+    Export:
+      Name: !Sub '${AppName}-SessionsTableArn-${EnvironmentName}'
+
+  UsersTableName:
+    Description: DynamoDB Users Table Name
+    Value: !Ref UsersTable
+    Export:
+      Name: !Sub '${AppName}-UsersTableName-${EnvironmentName}'
+
+  UsersTableArn:
+    Description: DynamoDB Users Table ARN
+    Value: !GetAtt UsersTable.Arn
+    Export:
+      Name: !Sub '${AppName}-UsersTableArn-${EnvironmentName}'
+
+  BedrockAgentRoleArn:
+    Description: Bedrock Agent IAM Role ARN
+    Value: !GetAtt BedrockAgentRole.Arn
+    Export:
+      Name: !Sub '${AppName}-BedrockAgentRoleArn-${EnvironmentName}'
+
+  LambdaExecutionRoleArn:
+    Description: Lambda Execution Role ARN
+    Value: !GetAtt LambdaExecutionRole.Arn
+    Export:
+      Name: !Sub '${AppName}-LambdaExecutionRoleArn-${EnvironmentName}'
+
+  ECSTaskRoleArn:
+    Description: ECS Task Role ARN
+    Value: !GetAtt ECSTaskRole.Arn
+    Export:
+      Name: !Sub '${AppName}-ECSTaskRoleArn-${EnvironmentName}'
+
+  GatewaySecurityGroupId:
+    Description: Security Group ID for Gateway
+    Value: !Ref GatewaySecurityGroup
+    Export:
+      Name: !Sub '${AppName}-GatewaySecurityGroupId-${EnvironmentName}'
+
+  LogGroupName:
+    Description: CloudWatch Log Group Name
+    Value: !Ref LogGroup
+    Export:
+      Name: !Sub '${AppName}-LogGroupName-${EnvironmentName}'
+
+  GatewayLogGroupName:
+    Description: CloudWatch Log Group Name for Gateway
+    Value: !Ref GatewayLogGroup
+    Export:
+      Name: !Sub '${AppName}-GatewayLogGroupName-${EnvironmentName}'
