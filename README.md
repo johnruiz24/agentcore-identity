@@ -1,37 +1,71 @@
 # AgentCore Identity
 
-Production-style reference for identity-safe AI agent orchestration on Amazon Bedrock AgentCore.
+Production-grade reference for identity-safe AI agent orchestration on Amazon Bedrock AgentCore.
 
-This repository focuses on one core problem: enabling an agent to call multiple external systems with delegated user OAuth while preserving strict identity boundaries.
+This project addresses one hard problem: how to let an agent call multiple external systems with delegated user OAuth without leaking trust boundaries.
 
-## What You Get
+## Readme Structure
+
+This README is intentionally organized in this order:
+
+1. Problem and scope
+2. Architecture visuals with context
+3. Repository structure
+4. Quick start and deploy
+5. Image generation workflow
+
+## Problem and Scope
+
+Most agent prototypes break in production at identity boundaries. This repository is built around:
 
 - Inbound identity validation with Cognito JWT
-- MCP tool discovery/routing through AgentCore Gateway
-- Outbound delegated OAuth providers with token vault isolation
-- Multi-target orchestration patterns (Atlassian + Google Calendar)
-- CDK infrastructure project separated from runtime/service code
-
-## Architecture
-
-The implementation is structured into four boundaries:
-
-1. Runtime boundary: agent orchestration and tool decisioning
-2. Gateway boundary: MCP protocol transport and tool exposure
-3. Identity boundary: delegated OAuth and secure token exchange
-4. Provider boundary: external APIs reachable only through approved scopes
+- MCP tool discovery and routing through AgentCore Gateway
+- Outbound delegated OAuth through AgentCore Identity token vault
+- Multi-target orchestration (Atlassian + Google Calendar)
+- CDK infrastructure isolated from runtime code
 
 ## Architecture Visuals
 
+### 1) System Map: Runtime, Gateway, Identity, Providers
+
+This diagram gives the high-level architecture and component boundaries.
+
 ![AgentCore Identity Architecture Hero](docs/assets/agentcore-readme-hero-nanobanana.png)
+
+Use this to understand:
+
+- where agent reasoning runs
+- where protocol routing happens (`tools/list`, `tools/call`)
+- where token exchange is isolated
+- where external API calls are finally executed
+
+### 2) Delegated OAuth Flow Sequence
+
+This view explains the request path for a user action that needs provider access.
 
 ![Delegated OAuth Sequence](docs/assets/agentcore-readme-oauth-sequence-nanobanana.png)
 
+Use this to understand:
+
+- when consent URL elicitation happens
+- how callback and token exchange resume the flow
+- where delegated tokens are used for provider APIs
+
+### 3) Zero-Trust Boundary Model
+
+This view focuses on security boundaries rather than feature flow.
+
 ![Zero-Trust Boundary Map](docs/assets/agentcore-readme-zero-trust-nanobanana.png)
+
+Use this to understand:
+
+- which layer is allowed to see what
+- why token material is isolated from runtime orchestration
+- where policy and scope enforcement should be audited
 
 ## Repository Structure
 
-- `src/`: runtime/auth/providers/MCP services
+- `src/`: runtime, auth, providers, MCP services
 - `infra/cdk/`: CDK app and stack definitions
 - `scripts/`: validation and automation utilities
 - `scripts/deploy/`: deployment entry scripts
@@ -64,7 +98,7 @@ export AWS_REGION=<AWS_REGION>
 export AWS_ACCOUNT_ID=<AWS_ACCOUNT_ID>
 ```
 
-### Run service locally
+### Run locally
 
 ```bash
 python entrypoint.py
@@ -78,26 +112,20 @@ AWS_PROFILE=<AWS_PROFILE> AWS_REGION=<AWS_REGION> \
 npx cdk deploy BedrockIdentityFull --require-approval never
 ```
 
-## Nano Banana Image Generation
+## Nano Banana Image Workflow
 
-This repo includes an explicit workflow for high-quality architecture imagery.
+For Codex, use:
 
-- Codex skill: `image-generator` (Gemini Nano Banana Pro backend)
-- Workflow doc: [docs/IMAGE_GENERATION_NANOBANANA.md](docs/IMAGE_GENERATION_NANOBANANA.md)
+- Skill: `image-generator` (Gemini Nano Banana Pro backend)
+- Guide: [docs/IMAGE_GENERATION_NANOBANANA.md](docs/IMAGE_GENERATION_NANOBANANA.md)
 
-Practical guidance:
+Rules:
 
-- Use the skill when generating architecture hero images, explainer assets, or docs visuals.
-- Keep generated assets under `docs/assets/`.
-- Never commit secrets/API keys in prompts, scripts, or outputs.
+- keep generated visuals in `docs/assets/`
+- never include secrets in prompts or generated artifacts
+- regenerate diagrams whenever trust boundaries or flows change
 
-## Security and Public-Safe Policy
-
-- Sensitive values are masked using placeholders
-- Internal-only planning/audit artifacts are excluded
-- Environment/account/profile data must remain externalized
-
-## Documentation Entry Points
+## Documentation Index
 
 - [Documentation Index](docs/README.md)
 - [Atlassian OAuth Setup](docs/ATLASSIAN_OAUTH_SETUP.md)
